@@ -1,0 +1,146 @@
+<!DOCTYPE html>
+<html lang="uz">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <meta name="description" content="Imgsh v3 - Shohruzbek tomonidan yaratilgan Super AI Editor">
+  <title>Imgsh v3 | Super AI Editor</title>
+  <link href="https://fonts.googleapis.com" rel="stylesheet">
+  
+  <style>
+    :root { --primary: #0071e3; --bg: #ffffff; --card: #f5f5f7; --accent: #34c759; }
+    body { margin: 0; font-family: 'Inter', sans-serif; background: var(--bg); display: flex; justify-content: center; align-items: center; min-height: 100vh; }
+    .editor-card { background: var(--card); padding: 25px; border-radius: 24px; box-shadow: 0 20px 40px rgba(0,0,0,0.1); width: 90%; max-width: 900px; display: grid; grid-template-columns: 1.5fr 1fr; gap: 20px; }
+    
+    .preview-area { display: flex; flex-direction: column; align-items: center; justify-content: center; border-right: 1px solid #ddd; padding-right: 20px; }
+    canvas { max-width: 100%; border-radius: 12px; box-shadow: 0 4px 12px rgba(0,0,0,0.05); background: #e5e5e7; }
+    
+    .controls-area { display: flex; flex-direction: column; gap: 12px; overflow-y: auto; max-height: 500px; padding-right: 5px; }
+    .control-item { background: #fff; padding: 10px 15px; border-radius: 12px; display: flex; flex-direction: column; }
+    .control-item label { font-size: 12px; font-weight: 600; color: #6e6e73; margin-bottom: 5px; display: flex; justify-content: space-between; }
+    
+    input[type="range"] { width: 100%; accent-color: var(--primary); cursor: pointer; }
+    
+    .actions { grid-column: span 2; display: flex; gap: 10px; margin-top: 10px; }
+    .btn { flex: 1; padding: 14px; border: none; border-radius: 14px; font-weight: 600; cursor: pointer; transition: 0.2s; font-size: 14px; }
+    .btn-upload { background: var(--accent); color: white; }
+    .btn-reset { background: #ff3b30; color: white; }
+    .btn-download { background: var(--primary); color: white; }
+    .btn:hover { opacity: 0.9; transform: scale(1.02); }
+
+    @media (max-width: 768px) {
+      .editor-card { grid-template-columns: 1fr; }
+      .preview-area { border-right: none; padding-right: 0; }
+      .actions { grid-column: span 1; }
+    }
+  </style>
+</head>
+<body>
+
+<div class="editor-card">
+  <div class="preview-area">
+    <canvas id="canvas"></canvas>
+    <div style="font-size: 12px; color: #888; margin-top: 10px;">Developer: <b>Shohruzbek</b></div>
+  </div>
+
+  <div class="controls-area">
+    <div class="control-item">
+      <label>Yorqinlik <span><b id="brightVal">100</b>%</span></label>
+      <input type="range" id="bright" min="0" max="200" value="100">
+    </div>
+    <div class="control-item">
+      <label>Kontrast <span><b id="contrastVal">100</b>%</span></label>
+      <input type="range" id="contrast" min="0" max="200" value="100">
+    </div>
+    <div class="control-item">
+      <label>To'yinganlik <span><b id="saturateVal">100</b>%</span></label>
+      <input type="range" id="saturate" min="0" max="200" value="100">
+    </div>
+    <div class="control-item">
+      <label>Xiralashtirish <span><b id="blurVal">0</b>px</span></label>
+      <input type="range" id="blur" min="0" max="20" value="0">
+    </div>
+    <div class="control-item">
+      <label>Grayscale <span><b id="grayVal">0</b>%</span></label>
+      <input type="range" id="gray" min="0" max="100" value="0">
+    </div>
+    <div class="control-item">
+      <label>Sepia <span><b id="sepiaVal">0</b>%</span></label>
+      <input type="range" id="sepia" min="0" max="100" value="0">
+    </div>
+    <div class="control-item">
+      <label>Invert (Rangni teskari qilish) <span><b id="invertVal">0</b>%</span></label>
+      <input type="range" id="invert" min="0" max="100" value="0">
+    </div>
+  </div>
+
+  <div class="actions">
+    <label class="btn btn-upload" for="upload">🖼️ Rasm yuklash</label>
+    <input type="file" id="upload" style="display:none" accept="image/*">
+    <button class="btn btn-reset" id="resetBtn">🔄 Reset</button>
+    <button class="btn btn-download" id="downloadBtn">📥 Download</button>
+  </div>
+</div>
+
+<script>
+  const canvas = document.getElementById('canvas');
+  const ctx = canvas.getContext('2d');
+  const upload = document.getElementById('upload');
+  
+  const sliders = ['bright', 'contrast', 'saturate', 'blur', 'gray', 'sepia', 'invert'];
+  const elements = {};
+  sliders.forEach(s => {
+    elements[s] = document.getElementById(s);
+    elements[s + 'Val'] = document.getElementById(s + 'Val');
+  });
+
+  let img = new Image();
+
+  upload.addEventListener('change', (e) => {
+    const reader = new FileReader();
+    reader.onload = () => { img.src = reader.result; };
+    reader.readAsDataURL(e.target.files[0]);
+  });
+
+  img.onload = () => {
+    const maxWidth = 1200;
+    canvas.width = Math.min(img.width, maxWidth);
+    canvas.height = canvas.width * (img.height / img.width);
+    applyFilters();
+  };
+
+  function applyFilters() {
+    if(!img.src) return;
+    sliders.forEach(s => elements[s + 'Val'].textContent = elements[s].value);
+    
+    ctx.filter = `
+      brightness(${elements.bright.value}%)
+      contrast(${elements.contrast.value}%)
+      saturate(${elements.saturate.value}%)
+      blur(${elements.blur.value}px)
+      grayscale(${elements.gray.value}%)
+      sepia(${elements.sepia.value}%)
+      invert(${elements.invert.value}%)
+    `;
+    ctx.drawImage(img, 0, 0, canvas.width, canvas.height);
+  }
+
+  sliders.forEach(s => elements[s].addEventListener('input', applyFilters));
+
+  document.getElementById('resetBtn').addEventListener('click', () => {
+    elements.bright.value = 100; elements.contrast.value = 100; elements.saturate.value = 100;
+    elements.blur.value = 0; elements.gray.value = 0; elements.sepia.value = 0; elements.invert.value = 0;
+    applyFilters();
+  });
+
+  document.getElementById('downloadBtn').addEventListener('click', () => {
+    if(!img.src) return alert("Rasm yuklang!");
+    const link = document.createElement('a');
+    link.download = 'imgsh_super_v3.png';
+    link.href = canvas.toDataURL('image/png', 1.0);
+    link.click();
+  });
+</script>
+
+</body>
+</html>
