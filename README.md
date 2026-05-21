@@ -1,1 +1,1 @@
-shohruzbek
+shohruzbek yasagan
